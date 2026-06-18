@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Caderno de Receitas</title>
+  <meta name="description" content="Extraia receitas de vídeos do Instagram, Facebook e YouTube com IA" />
+  <meta name="theme-color" content="#D85A30" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Receitas" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.svg" />
+  <link rel="icon" href="icon-192.svg" />
+  <style>
+    :root {
+      --coral: #D85A30;
+      --coral-light: #FAECE7;
+      --coral-dark: #993C1D;
+      --teal-light: #E1F5EE;
+      --teal-dark: #0F6E56;
+      --purple-light: #EEEDFE;
+      --purple-dark: #3C3489;
+      --gray-light: #F1EFE8;
+      --gray-dark: #5F5E5A;
+      --bg: #f7f6f3;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --text-2: #666;
+      --text-3: #aaa;
+      --border: rgba(0,0,0,0.1);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --card: #252525;
+        --text: #f0f0f0;
+        --text-2: #aaa;
+        --text-3: #666;
+        --border: rgba(255,255,255,0.1);
+        --coral-light: #3a1a0e;
+        --teal-light: #0a2a1f;
+        --purple-light: #1a1840;
+        --gray-light: #2a2a28;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Top bar */
+    .topbar { padding: env(safe-area-inset-top, 12px) 16px 0; padding-top: max(env(safe-area-inset-top), 12px); display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .logo { width: 38px; height: 38px; background: var(--coral); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo svg { width: 20px; height: 20px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .topbar-text h1 { font-size: 17px; font-weight: 600; line-height: 1.2; }
+    .topbar-text p { font-size: 12px; color: var(--text-2); }
+
+    /* Add card */
+    .add-card { margin: 0 12px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .add-label { font-size: 12px; color: var(--text-2); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+    .source-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .stab { flex: 1; padding: 7px 0; font-size: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-2); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; transition: all .15s; }
+    .stab.active { background: var(--coral-light); border-color: var(--coral); color: var(--coral-dark); }
+    .stab svg { width: 14px; height: 14px; }
+    .url-row { display: flex; gap: 8px; }
+    .url-input { flex: 1; font-size: 14px; padding: 0 12px; height: 42px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); outline: none; font-family: inherit; min-width: 0; }
+    .url-input:focus { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(216,90,48,.12); }
+    .btn-extract { background: var(--coral); color: white; border: none; border-radius: var(--radius-sm); padding: 0 16px; height: 42px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; font-family: inherit; }
+    .btn-extract:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-extract svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; }
+
+    /* Progress / error */
+    .progress { display: none; margin-top: 10px; gap: 8px; align-items: center; font-size: 13px; color: var(--text-2); }
+    .progress.on { display: flex; }
+    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--coral); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .err { display: none; background: #FCEBEB; color: #A32D2D; font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: 8px; }
+    .err.on { display: block; }
+
+    /* Share hint */
+    .share-hint { margin: 0 12px 12px; background: var(--teal-light); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: var(--teal-dark); display: flex; gap: 8px; align-items: flex-start; }
+    .share-hint svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; margin-top: 1px; }
+
+    /* Divider */
+    .divider { height: 1px; background: var(--border); margin: 0 12px 12px; }
+
+    /* Search */
+    .search-wrap { padding: 0 12px 10px; position: relative; }
+    .search-wrap svg { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; fill: none; stroke: var(--text-3); stroke-width: 2; stroke-linecap: round; }
+    .search-input { width: 100%; height: 36px; padding: 0 12px 0 36px; font-size: 14px; border: 1px solid var(--border); border-radius: 20px; background: var(--card); color: var(--text); outline: none; font-family: inherit; }
+    .search-input:focus { border-color: var(--coral); }
+
+    /* List header */
+    .list-header { padding: 0 12px 8px; font-size: 13px; color: var(--text-2); }
+
+    /* Recipe card */
+    .recipe-card { margin: 0 12px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-top { display: flex; gap: 10px; padding: 12px; }
+    .card-thumb { width: 64px; height: 64px; border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; background: var(--coral-light); display: flex; align-items: center; justify-content: center; }
+    .card-thumb svg.food-icon { width: 28px; height: 28px; fill: none; stroke: var(--coral); stroke-width: 1.5; }
+    .card-thumb img { width: 64px; height: 64px; object-fit: cover; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 14px; font-weight: 600; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+    .badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-size: 11px; }
+    .b-cal { background: var(--coral-light); color: var(--coral-dark); }
+    .b-time { background: var(--teal-light); color: var(--teal-dark); }
+    .b-diff { background: var(--purple-light); color: var(--purple-dark); }
+    .b-src { background: var(--gray-light); color: var(--gray-dark); }
+    .badge svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+    .card-del { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 4px; border-radius: 6px; align-self: flex-start; font-size: 18px; line-height: 1; }
+    .card-del:active { color: #E24B4A; }
+
+    /* Expand button */
+    .expand-btn { width: 100%; background: none; border: none; border-top: 1px solid var(--border); padding: 9px; font-size: 13px; color: var(--text-2); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: inherit; }
+    .expand-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; transition: transform .2s; }
+    .expand-btn.open svg { transform: rotate(180deg); }
+
+    /* Detail section */
+    .card-detail { display: none; border-top: 1px solid var(--border); padding: 14px; }
+    .card-detail.open { display: block; }
+    .detail-photo { width: 100%; height: 180px; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 14px; background: var(--coral-light); display: flex; align-items: center; justify-content: center; }
+    .detail-photo svg { width: 100%; height: 180px; }
+    .sec-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; margin: 14px 0 8px; }
+    .sec-label:first-child { margin-top: 0; }
+    .ing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+    .ing-item { font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: baseline; }
+    .ing-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--coral); flex-shrink: 0; margin-top: 4px; }
+    .steps-list { display: flex; flex-direction: column; gap: 8px; }
+    .step-row { display: flex; gap: 8px; align-items: flex-start; }
+    .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--coral-light); color: var(--coral-dark); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .step-txt { font-size: 13px; line-height: 1.6; flex: 1; }
+    .nut-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .nut-row:last-child { border: none; font-weight: 600; }
+    .nut-val { color: var(--text); }
+    .nut-row:last-child .nut-val { color: var(--coral); }
+    .tip-box { background: var(--bg); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--text-2); line-height: 1.6; margin-top: 4px; }
+    .src-link { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-3); text-decoration: none; margin-top: 12px; }
+    .src-link svg { width: 14px; height: 14px; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 3rem 1rem; }
+    .empty-state svg { width: 48px; height: 48px; fill: none; stroke: var(--text-3); stroke-width: 1.5; stroke-linecap: round; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; color: var(--text-2); line-height: 1.6; }
+
+    /* Bottom safe area */
+    .bottom-pad { height: env(safe-area-inset-bottom, 20px); height: max(env(safe-area-inset-bottom), 20px); }
+
+    /* Install banner */
+    #installBanner { display: none; margin: 0 12px 12px; background: var(--purple-light); border-radius: var(--radius-sm); padding: 12px; font-size: 13px; color: var(--purple-dark); }
+    #installBanner.show { display: flex; gap: 10px; align-items: center; }
+    #installBanner p { flex: 1; line-height: 1.5; }
+    #installBanner button { background: var(--coral); color: white; border: none; border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+  </div>
+  <div class="topbar-text">
+    <h1>Caderno de Receitas</h1>
+    <p>Instagram · Facebook · YouTube</p>
+  </div>
+</div>
+
+<div id="installBanner">
+  <p>Instale o app para receber receitas pelo botão <strong>Compartilhar</strong>!</p>
+  <button onclick="installApp()">Instalar</button>
+</div>
+
+<div class="add-card">
+  <div class="add-label">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    Cole o link ou use o botão Compartilhar
+  </div>
+  <div class="source-tabs">
+    <button class="stab active" data-src="instagram" onclick="setSource('instagram')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".5" fill="currentColor"/></svg>
+      Instagram
+    </button>
+    <button class="stab" data-src="facebook" onclick="setSource('facebook')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      Facebook
+    </button>
+    <button class="stab" data-src="youtube" onclick="setSource('youtube')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.96-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/></svg>
+      YouTube
+    </button>
+  </div>
+  <div class="url-row">
+    <input class="url-input" id="urlInput" placeholder="https://www.instagram.com/reel/..." />
+    <button class="btn-extract" id="btnExtract" onclick="extractRecipe()">
+      <svg viewBox="0 0 24 24"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h0"/><path d="M17.8 6.2 19 5"/><path d="M3 21l9-9"/><path d="M12.2 6.2 11 5"/></svg>
+      Extrair
+    </button>
+  </div>
+  <div class="progress" id="progress">
+    <div class="spinner"></div>
+    <span id="progressText">Analisando com IA...</span>
+  </div>
+  <div class="err" id="errMsg"></div>
+</div>
+
+<div class="share-hint">
+  <svg viewBox="0 0 24 24" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+  <span>Depois de instalar: abra um vídeo de receita → toque em <strong>Compartilhar</strong> → escolha <strong>Caderno de Receitas</strong></span>
+</div>
+
+<div class="divider"></div>
+
+<div id="mainContent"></div>
+<div class="bottom-pad"></div>
+
+<script>
+let recipes = [];
+let currentSrc = 'instagram';
+let deferredInstallPrompt = null;
+const STORAGE_KEY = 'receitas_pwa_v1';
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+function installApp() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(() => {
+      deferredInstallPrompt = null;
+      document.getElementById('installBanner').classList.remove('show');
+    });
+  }
+}
+
+// Handle shared URL from Share Target
+const urlParams = new URLSearchParams(window.location.search);
+const sharedUrl = urlParams.get('url') || urlParams.get('text');
+if (sharedUrl && (sharedUrl.includes('instagram') || sharedUrl.includes('facebook') || sharedUrl.includes('youtube') || sharedUrl.includes('youtu.be'))) {
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('urlInput').value = sharedUrl.trim();
+    if (sharedUrl.includes('instagram')) setSource('instagram');
+    else if (sharedUrl.includes('facebook')) setSource('facebook');
+    else setSource('youtube');
+    setTimeout(extractRecipe, 600);
+  });
+}
+
+function loadData() {
+  try { const d = localStorage.getItem(STORAGE_KEY); if (d) recipes = JSON.parse(d); } catch(e) {}
+}
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes)); } catch(e) {}
+}
+
+function setSource(src) {
+  currentSrc = src;
+  document.querySelectorAll('.stab').forEach(t => t.classList.toggle('active', t.dataset.src === src));
+  const ph = { instagram: 'https://www.instagram.com/reel/...', facebook: 'https://www.facebook.com/reel/...', youtube: 'https://www.youtube.com/watch?v=...' };
+  document.getElementById('urlInput').placeholder = ph[src];
+}
+
+function setProgress(on, text) {
+  const p = document.getElementById('progress');
+  p.classList.toggle('on', on);
+  if (text) document.getElementById('progressText').textContent = text;
+}
+
+function setErr(msg) {
+  const e = document.getElementById('errMsg');
+  e.textContent = msg;
+  e.classList.toggle('on', !!msg);
+}
+
+async function extractRecipe() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { setErr('Cole um link de vídeo.'); return; }
+  const valid = url.includes('instagram.com') || url.includes('facebook.com') || url.includes('youtube.com') || url.includes('youtu.be');
+  if (!valid) { setErr('Use um link do Instagram, Facebook ou YouTube.'); return; }
+
+  setErr('');
+  const btn = document.getElementById('btnExtract');
+  btn.disabled = true;
+  setProgress(true, 'Analisando com IA...');
+
+  const srcLabel = currentSrc.charAt(0).toUpperCase() + currentSrc.slice(1);
+
+  const prompt = `Você é um chef e nutricionista brasileiro. O usuário compartilhou este link de vídeo do ${srcLabel}: ${url}
+
+Crie uma receita brasileira completa e realista. Gere também uma descrição visual do prato.
+
+Responda APENAS com JSON puro, sem texto extra, sem markdown, sem backticks:
+{
+  "nome": "Nome da Receita",
+  "fonte": "${srcLabel}",
+  "porcoes": 4,
+  "tempo_preparo": "30 min",
+  "dificuldade": "Fácil",
+  "ingredientes": ["200g de frango", "1 cebola", "2 dentes de alho"],
+  "modo_preparo": ["Passo 1.", "Passo 2.", "Passo 3."],
+  "tabela_nutricional": [
+    {"n": "Proteínas", "v": "32g"},
+    {"n": "Carboidratos", "v": "18g"},
+    {"n": "Gorduras", "v": "12g"},
+    {"n": "Fibras", "v": "3g"}
+  ],
+  "calorias_porcao": 310,
+  "calorias_total": 1240,
+  "dica": "Uma dica especial de preparo.",
+  "imagem_descricao": "Descrição visual do prato para gerar imagem SVG",
+  "url": "${url}"
+}`;
+
+  try {
+    setProgress(true, 'Extraindo receita...');
+    const r1 = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const d1 = await r1.json();
+    const raw = (d1.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const recipe = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    recipe.id = Date.now();
+
+    setProgress(true, 'Gerando foto do prato...');
+    try {
+      const imgPrompt = `Crie um SVG simples (viewBox="0 0 300 200") de um prato de comida bonito representando: "${recipe.imagem_descricao}". Use formas geométricas e cores realistas e apetitosas. Responda APENAS com o SVG completo, sem texto adicional.`;
+      const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 800,
+          messages: [{ role: 'user', content: imgPrompt }]
+        })
+      });
+      const d2 = await r2.json();
+      const svgRaw = (d2.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+      const svgMatch = svgRaw.match(/<svg[\s\S]*<\/svg>/i);
+      if (svgMatch) recipe.svgImage = svgMatch[0];
+    } catch(e) { recipe.svgImage = null; }
+
+    recipes.unshift(recipe);
+    saveData();
+    document.getElementById('urlInput').value = '';
+    setProgress(false);
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(e) {
+    setErr('Não foi possível extrair. Verifique o link e tente novamente.');
+    setProgress(false);
+  }
+  btn.disabled = false;
+}
+
+function toggleDetail(id) {
+  const det = document.getElementById('det_' + id);
+  const btn = document.getElementById('exp_' + id);
+  if (!det) return;
+  const open = det.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('span').textContent = open ? 'Esconder detalhes' : 'Ver ingredientes e preparo';
+}
+
+function deleteRecipe(id) {
+  if (!confirm('Remover esta receita?')) return;
+  recipes = recipes.filter(r => r.id !== id);
+  saveData();
+  render();
+}
+
+const srcIcons = {
+  Instagram: `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".5" fill="currentColor"/></svg>`,
+  Facebook: `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>`,
+  YouTube: `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.96-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/></svg>`
+};
+
+function render() {
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const filtered = recipes.filter(r => !q || r.nome.toLowerCase().includes(q));
+  const main = document.getElementById('mainContent');
+
+  if (recipes.length === 0) {
+    main.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+      <p>Nenhuma receita ainda.<br>Cole um link acima para começar!</p>
+    </div>`;
+    return;
+  }
+
+  const cards = filtered.map(r => {
+    const thumbHtml = r.svgImage
+      ? `<div class="card-thumb">${r.svgImage.replace(/width="[^"]*"/, 'width="64"').replace(/height="[^"]*"/, 'height="64"')}</div>`
+      : `<div class="card-thumb"><svg class="food-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>`;
+
+    const detPhoto = r.svgImage
+      ? `<div class="detail-photo">${r.svgImage.replace(/width="[^"]*"/i, '').replace(/height="[^"]*"/i, '').replace('<svg', '<svg width="100%" height="180" preserveAspectRatio="xMidYMid slice"')}</div>`
+      : '';
+
+    const ings = (r.ingredientes || []).map(i => `<div class="ing-item"><span class="ing-dot"></span><span>${i}</span></div>`).join('');
+    const steps = (r.modo_preparo || []).map((s, i) => `<div class="step-row"><span class="step-num">${i + 1}</span><span class="step-txt">${s}</span></div>`).join('');
+    const nuts = (r.tabela_nutricional || []).map(n => `<div class="nut-row"><span>${n.n}</span><span class="nut-val">${n.v}</span></div>`).join('');
+    const calTotal = r.calorias_total ? `<div class="nut-row"><span>Calorias totais</span><span class="nut-val">${r.calorias_total} kcal</span></div>` : '';
+    const srcIcon = srcIcons[r.fonte] || '';
+    const calPorcao = r.calorias_porcao ? Math.round(r.calorias_porcao) : '';
+
+    return `<div class="recipe-card">
+      <div class="card-top">
+        ${thumbHtml}
+        <div class="card-info">
+          <div class="card-name">${r.nome}</div>
+          <div class="card-badges">
+            ${calPorcao ? `<span class="badge b-cal"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> ${calPorcao} kcal/porção</span>` : ''}
+            ${r.tempo_preparo ? `<span class="badge b-time"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${r.tempo_preparo}</span>` : ''}
+            ${r.dificuldade ? `<span class="badge b-diff">${r.dificuldade}</span>` : ''}
+            ${r.fonte ? `<span class="badge b-src">${srcIcon} ${r.fonte}</span>` : ''}
+          </div>
+        </div>
+        <button class="card-del" onclick="deleteRecipe(${r.id})" aria-label="Excluir">✕</button>
+      </div>
+      <button class="expand-btn" id="exp_${r.id}" onclick="toggleDetail(${r.id})">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        <span>Ver ingredientes e preparo</span>
+      </button>
+      <div class="card-detail" id="det_${r.id}">
+        ${detPhoto}
+        <div class="sec-label">Ingredientes</div>
+        <div class="ing-grid">${ings}</div>
+        <div class="sec-label">Modo de preparo</div>
+        <div class="steps-list">${steps}</div>
+        ${nuts ? `<div class="sec-label">Tabela nutricional (por porção)</div><div>${nuts}${calTotal}</div>` : ''}
+        ${r.dica ? `<div class="sec-label">Dica</div><div class="tip-box">${r.dica}</div>` : ''}
+        ${r.url ? `<a href="${r.url}" class="src-link" target="_blank">${srcIcon} Ver vídeo original</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  main.innerHTML = `
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-input" id="searchInput" placeholder="Buscar receita..." oninput="render()" />
+    </div>
+    <div class="list-header">${filtered.length} receita${filtered.length !== 1 ? 's' : ''}</div>
+    ${filtered.length === 0 ? '<div style="text-align:center;padding:2rem;font-size:14px;color:var(--text-2)">Nenhuma receita encontrada.</div>' : cards}
+  `;
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') extractRecipe(); });
+
+loadData();
+render();
+</script>
+</body>
+</html>
