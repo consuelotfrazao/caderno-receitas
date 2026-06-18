@@ -1,5 +1,12 @@
-const CACHE = 'receitas-v1';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.svg', '/icon-512.svg'];
+const CACHE = 'receitas-v2';
+const BASE = '/caderno-receitas';
+const ASSETS = [
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/icon-192.svg',
+  BASE + '/icon-512.svg'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -17,8 +24,6 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
-  // Deixa as chamadas para a API da Anthropic passarem normalmente
   if (url.hostname === 'api.anthropic.com') return;
 
   e.respondWith(
@@ -30,7 +35,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => caches.match('/index.html'));
+      }).catch(() => caches.match(BASE + '/index.html'));
     })
   );
 });
