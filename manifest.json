@@ -2,8 +2,8 @@
   "name": "Caderno de Receitas",
   "short_name": "Receitas",
   "description": "Extraia receitas de vídeos do Instagram, Facebook e YouTube com IA",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/caderno-receitas/",
+  "scope": "/caderno-receitas/",
   "display": "standalone",
   "background_color": "#f7f6f3",
   "theme_color": "#D85A30",
@@ -24,7 +24,7 @@
     }
   ],
   "share_target": {
-    "action": "/",
+    "action": "/caderno-receitas/",
     "method": "GET",
     "params": {
       "url": "url",
@@ -36,7 +36,7 @@
     {
       "name": "Adicionar receita",
       "short_name": "Adicionar",
-      "url": "/",
+      "url": "/caderno-receitas/",
       "icons": [{ "src": "icon-192.svg", "sizes": "192x192" }]
     }
   ],
